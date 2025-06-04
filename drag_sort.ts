@@ -6,6 +6,7 @@ export interface SortableItem {
   id: string;
   order: number; // double
   position: number; // default to -1, position locked if >= 0
+  data?: unknown;
 }
 
 export interface DragSortOptions {
@@ -35,8 +36,13 @@ export class DragSortLibrary {
     };
   }
 
-  // Add item to the list
-  insert(id: string, position: number, lock: boolean = false): SortableItem {
+  // insert item to the position, order will be caclculated by its neighbor
+  insert(
+    id: string,
+    position: number,
+    lock: boolean = false,
+    data: unknown = undefined
+  ): SortableItem {
     if (position < 0 || position > this.items.length) {
       throw new Error('Position out of range');
     }
@@ -49,6 +55,7 @@ export class DragSortLibrary {
       id,
       order: this.calculateOrder(position),
       position: lock ? position : -1,
+      data,
     };
 
     this.items = [
@@ -64,12 +71,17 @@ export class DragSortLibrary {
     return newItem;
   }
 
-  append(id: string, lock: boolean = false): SortableItem {
+  // append to the end
+  append(
+    id: string,
+    lock: boolean = false,
+    data: undefined = undefined
+  ): SortableItem {
     const position = this.items.length;
-    return this.insert(id, position, lock);
+    return this.insert(id, position, lock, data);
   }
 
-  // set position
+  // move to a new position
   move(id: string, position: number): SortableItem {
     const index = this.items.findIndex((i) => i.id === id);
     if (index === -1) {
@@ -89,8 +101,8 @@ export class DragSortLibrary {
     return item;
   }
 
-  // Delete
-  delele(id: string): SortableItem | undefined {
+  // delete
+  delete(id: string): SortableItem | undefined {
     const index = this.items.findIndex((i) => i.id === id);
     if (index === -1) {
       return;
@@ -108,21 +120,16 @@ export class DragSortLibrary {
     return this.items.length;
   }
 
-  // get all
+  // get all (shallow-copy)
   getAll(): SortableItem[] {
-    return [...this.items];
-  }
-
-  clone(): SortableItem[] {
     return this.items.map((item) => ({ ...item }));
   }
 
   get(id: string) {
-    // return this.items.find((i) => i.id === id);
     const index = this.items.findIndex((i) => i.id === id);
     return {
       index,
-      item: index !== -1 ? this.items[index] : null,
+      item: index !== -1 ? { ...this.items[index] } : null,
     };
   }
 
@@ -265,7 +272,11 @@ export class DragSortLibrary {
 
     if (resorded.length > 0) {
       if (this.option.onResetOrder) {
-        this.option.onResetOrder(resorded);
+        try {
+          this.option.onResetOrder(resorded);
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
   }

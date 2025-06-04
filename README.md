@@ -1,24 +1,25 @@
-# DragSortLibrary 使用文档
+# DragSortLibrary Documentation
 
-[DragSortLibrary](./drag_sort.ts) 是一个用于管理可拖动排序元素的库。它提供了添加、删除、移动以及锁定某些元素位置的功能，使得在处理复杂的排序逻辑时更加便捷。其内部使用浮点数记录元素相对排序值（order），从而避免每次变更（insert、move，delete）时对元素的排序值进行重新计算。
+[DragSortLibrary](./drag_sort.ts#L19-L282) is a utility library for managing drag-and-sort operations on a list of items. It supports inserting, moving, deleting, and locking elements while maintaining their relative order using floating-point values ([order](./drag_sort.ts#L6-L6)). This avoids the need to recompute all order values after every operation (e.g., insert, move, delete).
 
-## 功能特性
+## Features
 
-- **添加元素**：将新元素添加到指定位置。
-- **移动元素**：将某个元素移动到新的位置。
-- **删除元素**：从列表中删除指定元素。
-- **锁定元素**：某些元素可以被标记为锁定状态，锁定的元素不会因为其他操作（如添加或删除）而改变其顺序。
-- **精度控制**：支持通过设置精度和步长来控制排序的细节。
-- **重置顺序**：当由于频繁的操作导致顺序无法继续维护时（超出指定的精度精度范围时），支持重置顺序。
+- **Insert Elements**: Add an item at a specified position.
+- **Move Elements**: Move an existing item to a new index.
+- **Delete Elements**: Remove an item by its ID.
+- **Lock Elements**: Lock certain elements so that they remain in place during other sorting operations.
+- **Precision Control**: Customize precision and step size to manage spacing between order values.
+- **Order Reset**: Automatically reset the order when precision limits are exceeded.
 
-## 基本用法
+## Basic Usage
 
-### 初始化
+### Initialization
+
+To initialize the library with a set of sortable items:
 
 ```typescript
 import { SortableItem, DragSortLibrary } from './drag_sort';
 
-// 创建一个包含初始项的库实例
 const items: SortableItem[] = [
   { id: '0', position: -1, order: 1 },
   { id: '2', position: -1, order: 3 },
@@ -27,60 +28,61 @@ const items: SortableItem[] = [
 const library = new DragSortLibrary(items, { step: 100000 });
 ```
 
-### 添加元素
+### Inserting Items
+
+You can insert or append items like this:
 
 ```typescript
-// 添加两个新元素到指定位置
 library.insert('insert_2', 2);
-library.insert('insert_3', 3);
+library.append('insert_3');
 
-// 获取所有元素并验证它们的位置
 let items = library.getAll();
 expect(items[2].id).toBe('insert_2');
 expect(items[3].id).toBe('insert_3');
 ```
 
-### 移动元素
+### Moving Items
+
+Move an item to a specific index:
 
 ```typescript
-// 将元素'move'移动到索引0处
 library.move('move', 0);
 
-// 验证元素是否已经移动到位
 let items = library.getAll();
 expect(items[0].id).toBe('move');
 ```
 
-### 删除元素
+### Deleting Items
+
+Remove an item by ID:
 
 ```typescript
-// 删除ID为'0'的元素
-const deleted = library.delele('0');
+const deleted = library.delete('0');
 
-// 验证删除后的列表
 let items = library.getAll();
 expect(items.length).toBe(2);
-expect(items[0].id).toBe('header'); // 假设这是之前添加的一个元素
-expect(items[1].id).toBe('1');     // 假设这是另一个已存在的元素
+expect(items[0].id).toBe('header'); // Assuming previously added
+expect(items[1].id).toBe('1');      // Another existing item
 ```
 
-### 锁定与解锁元素
+### Locking/Unlocking Elements
+
+Add locked/unlocked items:
 
 ```typescript
-// 添加带有锁定状态的元素
 library.insert('0_lock', 0, true);
 library.insert('1_unlock', 1, false);
 
-// 当有解锁元素被删除后，重新计算锁定元素的位置
-library.delele('1_unlock');
+library.delete('1_unlock');
 let updated = library.reorderLocked();
-expect(updated.length).toEqual(0); // 没有锁定元素需要调整
+expect(updated.length).toEqual(0); // No locked items needed adjustment
 ```
 
-### 精度控制
+### Precision & Order Reset
+
+Set precision and step size, and define a callback for handling order resets:
 
 ```typescript
-// 设置精度和步长，并提供回调函数以处理重置订单的情况
 const resetAll: SortableItem[] = [];
 const onResetOrder = function (reseted: SortableItem[]) {
   resetAll.push(...reseted);
@@ -91,17 +93,27 @@ const libraryWithPrecision = new DragSortLibrary(items, {
   step: 10,
   onResetOrder,
 });
-
-// 进行一些可能导致精度溢出的操作...
 ```
 
-### 获取特定元素信息
+### Get Specific Item Info
+
+Retrieve an item and its current index:
 
 ```typescript
-// 获取特定ID的元素及其索引
 const itemInfo = library.get('someItemId');
 expect(itemInfo.index).toBe(someIndex);
 expect(itemInfo.item?.id).toBe('someItemId');
 ```
 
-以上就是 `DragSortLibrary` 的基本使用方法。根据实际需求，你可以灵活运用这些功能来构建更复杂的应用场景。
+---
+
+This covers the core features and usage patterns of the `DragSortLibrary`. You can extend and adapt it based on your application's needs.
+
+Let me know if you'd like to add sections such as:
+- Installation instructions
+- API reference
+- Contributing guidelines
+- License information
+- Unit testing guide
+
+I can generate those too!

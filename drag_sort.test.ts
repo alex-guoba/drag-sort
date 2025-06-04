@@ -61,7 +61,7 @@ describe('DragSortLibrary', () => {
 
     expect(library.length).toBe(3);
 
-    const deleted = library.delele('0');
+    const deleted = library.delete('0');
     expect(library.checkOrder()).toBe(true);
     expect(deleted?.id).toEqual('0');
 
@@ -83,8 +83,8 @@ describe('DragSortLibrary', () => {
     library.insert('4_lock', 4, true);
     library.insert('5_unlock', 5, false);
 
-    // delele an unlocked item, which should not affect the order of locked items
-    library.delele('1_unlock');
+    // delete an unlocked item, which should not affect the order of locked items
+    library.delete('1_unlock');
     library.reorderLocked();
 
     let items = library.getAll();
@@ -92,8 +92,8 @@ describe('DragSortLibrary', () => {
     expect(ids).toEqual(['0_lock', '3_unlock', '2_lock', '5_unlock', '4_lock']);
     expect(library.checkOrder()).toBe(true);
 
-    //  delele a locked item, which should not affect the order of unlocked items
-    library.delele('2_lock');
+    //  delete a locked item, which should not affect the order of unlocked items
+    library.delete('2_lock');
     library.reorderLocked();
     items = library.getAll();
 
@@ -255,7 +255,7 @@ describe('DragSortLibrary', () => {
     expect(resetAll[1].id === 'mid');
   });
 
-  test('reorder-locked-delele', () => {
+  test('reorder-locked-delete', () => {
     const library = new DragSortLibrary();
     library.insert('0_lock', 0, true);
     library.insert('1_unlock', 1, false);
@@ -264,15 +264,15 @@ describe('DragSortLibrary', () => {
     library.insert('4_lock', 4, true);
     library.insert('5_unlock', 5, false);
 
-    // delele an unlocked item
-    library.delele('1_unlock');
+    // delete an unlocked item
+    library.delete('1_unlock');
     let updated = library.reorderLocked();
     expect(updated.length).toBe(2); // locked item will move head
     expect(updated[0].id).toBe('2_lock');
     expect(updated[1].id).toBe('4_lock');
 
     // delete locked item
-    library.delele('2_lock');
+    library.delete('2_lock');
 
     updated = library.reorderLocked();
     expect(updated.length).toBe(1);
