@@ -31,6 +31,53 @@ describe('DragSortLibrary', () => {
     expect(updated.length).toEqual(0);
   });
 
+  it('insert-before-locked', () => {
+    const library = new DragSortLibrary();
+    library.append('0_lock', true);
+    library.append('1_unlock', false);
+    library.append('2_lock', true);
+    library.append('3_lock', true);
+    library.append('4_unlock', false);
+
+    expect(library.checkOrder()).toBe(true);
+
+    // insert unlocked item before locked item, it will be pushed to the end of locked items
+    let item = library.insert('new_unlock', 2);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock',
+      '1_unlock',
+      '2_lock',
+      '3_lock',
+      'new_unlock',
+      '4_unlock',
+    ]);
+
+    expect(library.reorderLocked().length).toBe(0);
+
+    // insert locked item before locked item, it will replace its positon
+    library.delete(item.id);
+    item = library.insert('new_lock', 2, true);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'new_lock', // 2
+      '2_lock', // 2
+      '3_lock', // 3
+      '4_unlock',
+    ]);
+
+    // locked itemd will be reordered
+    expect(library.reorderLocked().length).toBe(2);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'new_lock', // 2
+      '3_lock', // 3
+      '2_lock', // conflict item will be reset
+      '4_unlock',
+    ]);
+  });
+
   it('move', () => {
     const library = new DragSortLibrary();
     library.insert('00', 0);
@@ -51,6 +98,55 @@ describe('DragSortLibrary', () => {
 
     const updated = library.reorderLocked();
     expect(updated.length).toEqual(0);
+  });
+
+  it('move-before-locked', () => {
+    const library = new DragSortLibrary();
+    library.append('0_lock', true);
+    library.append('1_unlock', false);
+    library.append('2_lock', true);
+    library.append('3_lock', true);
+    library.append('4_unlock', false);
+
+    expect(library.checkOrder()).toBe(true);
+
+    // move unlocked item before locked item, it will be pushed to the end of locked items
+    library.append('moveable', false);
+    let item = library.move('moveable', 2);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock',
+      '1_unlock',
+      '2_lock',
+      '3_lock',
+      'moveable',
+      '4_unlock',
+    ]);
+
+    expect(library.reorderLocked().length).toBe(0);
+
+    // insert locked item before locked item, it will replace its positon
+    library.delete(item.id);
+    item = library.append('moveable', true);
+    library.move('moveable', 2);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'moveable', // 2
+      '2_lock', // 2
+      '3_lock', // 3
+      '4_unlock',
+    ]);
+
+    // locked itemd will be reordered
+    expect(library.reorderLocked().length).toBe(2);
+    expect(library.getAll().map((item) => item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'moveable', // 2
+      '3_lock', // 3
+      '2_lock', // conflict item will be reset
+      '4_unlock',
+    ]);
   });
 
   it('delete', () => {

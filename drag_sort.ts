@@ -51,17 +51,19 @@ export class DragSortLibrary {
       throw new Error('Item with this id already exists');
     }
 
+    const newPos = this.findFreePos(position, lock);
+
     const newItem: SortableItem = {
       id,
-      order: this.calculateOrder(position),
-      position: lock ? position : -1,
+      order: this.calculateOrder(newPos),
+      position: lock ? newPos : -1,
       data,
     };
 
     this.items = [
-      ...this.items.slice(0, position),
+      ...this.items.slice(0, newPos),
       newItem,
-      ...this.items.slice(position),
+      ...this.items.slice(newPos),
     ];
 
     if (newItem.order === OrderOverflow) {
@@ -69,6 +71,19 @@ export class DragSortLibrary {
     }
 
     return newItem;
+  }
+
+  private findFreePos(wanted: number, lock: boolean): number {
+    if (lock) {
+      return wanted;
+    }
+    let i = wanted;
+    for (; i < this.items.length; i++) {
+      if (!this.isLocked(this.items[i])) {
+        return i;
+      }
+    }
+    return i;
   }
 
   // append to the end
@@ -83,21 +98,25 @@ export class DragSortLibrary {
 
   // move to a new position
   move(id: string, position: number): SortableItem {
-    const index = this.items.findIndex((i) => i.id === id);
-    if (index === -1) {
-      throw new Error('Item not found');
-    }
-
     if (position < 0 || position > this.items.length - 1) {
       throw new Error('Position out of range');
     }
 
+    const index = this.items.findIndex((i) => i.id === id);
+    if (index === -1) {
+      throw new Error('Item not found');
+    }
     // ignore if position is same as index
     if (position === index) {
       return this.items[index];
     }
 
-    const item = this.moveIndex(index, position);
+    const newPos = this.findFreePos(
+      position,
+      this.isLocked(this.items[index])
+    );
+
+    const item = this.moveIndex(index, newPos);
     return item;
   }
 
@@ -215,7 +234,8 @@ export class DragSortLibrary {
         continue;
       }
 
-      if (item.position < 0 || item.position >= totalLength) continue;
+      if (!this.isLocked(item) || item.position >= totalLength) continue;
+
       if (item.position === current.index) continue;
       if (this.items[item.position].position === item.position) {
         continue; // ignore the same position
@@ -234,8 +254,8 @@ export class DragSortLibrary {
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
-      if (item.position >= 0 && item.position !== i) {
-        // reset position if it's out of range or repeated
+      if (this.isLocked(item) && item.position !== i) {
+        // reset position if it's out of range or conflict
         item.position = i;
         updated.push({ ...item });
       }
@@ -249,7 +269,7 @@ export class DragSortLibrary {
     let preOrder = -1;
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
-      if (item.position >= 0 && item.position !== i) {
+      if (this.isLocked(item) && item.position !== i) {
         return false;
       }
       if (preOrder >= item.order) {
@@ -279,5 +299,9 @@ export class DragSortLibrary {
         }
       }
     }
+  }
+
+  private isLocked(item: SortableItem): boolean {
+    return item.position >= 0;
   }
 }
