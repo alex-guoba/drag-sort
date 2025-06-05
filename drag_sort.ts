@@ -1,6 +1,7 @@
 import { unsafeMiddleValue } from './unsafe_middle';
 
 const OrderOverflow = -1;
+const UnlockedPosition = -1;
 
 export interface SortableItem {
   id: string;
@@ -56,7 +57,7 @@ export class DragSortLibrary {
     const newItem: SortableItem = {
       id,
       order: this.calculateOrder(newPos),
-      position: lock ? newPos : -1,
+      position: lock ? newPos : UnlockedPosition,
       data,
     };
 
@@ -71,19 +72,6 @@ export class DragSortLibrary {
     }
 
     return newItem;
-  }
-
-  private findFreePos(wanted: number, lock: boolean): number {
-    if (lock) {
-      return wanted;
-    }
-    let i = wanted;
-    for (; i < this.items.length; i++) {
-      if (!this.isLocked(this.items[i])) {
-        return i;
-      }
-    }
-    return i;
   }
 
   // append to the end
@@ -111,10 +99,7 @@ export class DragSortLibrary {
       return this.items[index];
     }
 
-    const newPos = this.findFreePos(
-      position,
-      this.isLocked(this.items[index])
-    );
+    const newPos = this.findFreePos(position, this.isLocked(this.items[index]));
 
     const item = this.moveIndex(index, newPos);
     return item;
@@ -134,6 +119,22 @@ export class DragSortLibrary {
     return items[0];
   }
 
+  // lock
+  lock(id: string, lock: boolean = true): SortableItem | undefined {
+    const index = this.items.findIndex((i) => i.id === id);
+    if (index === -1) {
+      return;
+    }
+
+    const item = this.items[index];
+    if (lock && !this.isLocked(item)) {
+      item.position = index;
+    } else if (!lock && this.isLocked(item)) {
+      item.position = UnlockedPosition;
+    }
+    return item;
+  }
+
   // length
   get length(): number {
     return this.items.length;
@@ -150,6 +151,69 @@ export class DragSortLibrary {
       index,
       item: index !== -1 ? { ...this.items[index] } : null,
     };
+  }
+  // reorder locked items when needed( insert / delele / move)
+  public reorderLocked(): SortableItem[] {
+    const updated: SortableItem[] = [];
+    const movedIndices = new Set<number>();
+    const itemsCopy = [...this.items];
+    const totalLength = this.items.length;
+
+    for (let i = 0; i < totalLength; i++) {
+      const current = this.get(itemsCopy[i].id);
+      const item = current.item;
+      if (!item) {
+        continue;
+      }
+
+      if (!this.isLocked(item) || item.position >= totalLength) continue;
+
+      if (item.position === current.index) continue;
+      if (this.items[item.position].position === item.position) {
+        continue; // ignore the same position
+      }
+
+      if (!movedIndices.has(i)) {
+        try {
+          const updatedItem = this.moveIndex(current.index, item.position);
+          updated.push({ ...updatedItem });
+          movedIndices.add(item.position);
+        } catch (error) {
+          console.error(`Failed to set position for item ${item.id}:`, error);
+        }
+      }
+    }
+
+    for (let i = 0; i < this.items.length; i++) {
+      const item = this.items[i];
+      if (this.isLocked(item) && item.position !== i) {
+        // reset position if it's out of range or conflict
+        item.position = i;
+        updated.push({ ...item });
+      }
+    }
+
+    return updated;
+  }
+
+  // for unit test
+  public checkOrder(): boolean {
+    let preOrder = -1;
+    for (let i = 0; i < this.items.length; i++) {
+      const item = this.items[i];
+      if (this.isLocked(item) && item.position !== i) {
+        return false;
+      }
+      if (preOrder >= item.order) {
+        return false;
+      }
+      preOrder = item.order;
+    }
+    return true;
+  }
+
+  public isLocked(item: SortableItem): boolean {
+    return item.position != UnlockedPosition;
   }
 
   // calculate order by index
@@ -215,69 +279,22 @@ export class DragSortLibrary {
     return item;
   }
 
+  private findFreePos(wanted: number, lock: boolean): number {
+    if (lock) {
+      return wanted;
+    }
+    let i = wanted;
+    for (; i < this.items.length; i++) {
+      if (!this.isLocked(this.items[i])) {
+        return i;
+      }
+    }
+    return i;
+  }
+
   // sort by order
   private sortItems(): void {
     this.items.sort((a, b) => a.order - b.order);
-  }
-
-  // reorder locked items when needed( insert / delele / move)
-  public reorderLocked(): SortableItem[] {
-    const updated: SortableItem[] = [];
-    const movedIndices = new Set<number>();
-    const itemsCopy = [...this.items];
-    const totalLength = this.items.length;
-
-    for (let i = 0; i < totalLength; i++) {
-      const current = this.get(itemsCopy[i].id);
-      const item = current.item;
-      if (!item) {
-        continue;
-      }
-
-      if (!this.isLocked(item) || item.position >= totalLength) continue;
-
-      if (item.position === current.index) continue;
-      if (this.items[item.position].position === item.position) {
-        continue; // ignore the same position
-      }
-
-      if (!movedIndices.has(i)) {
-        try {
-          const updatedItem = this.moveIndex(current.index, item.position);
-          updated.push({ ...updatedItem });
-          movedIndices.add(item.position);
-        } catch (error) {
-          console.error(`Failed to set position for item ${item.id}:`, error);
-        }
-      }
-    }
-
-    for (let i = 0; i < this.items.length; i++) {
-      const item = this.items[i];
-      if (this.isLocked(item) && item.position !== i) {
-        // reset position if it's out of range or conflict
-        item.position = i;
-        updated.push({ ...item });
-      }
-    }
-
-    return updated;
-  }
-
-  // for unit test
-  public checkOrder(): boolean {
-    let preOrder = -1;
-    for (let i = 0; i < this.items.length; i++) {
-      const item = this.items[i];
-      if (this.isLocked(item) && item.position !== i) {
-        return false;
-      }
-      if (preOrder >= item.order) {
-        return false;
-      }
-      preOrder = item.order;
-    }
-    return true;
   }
 
   private resetOrder(): void {
@@ -299,9 +316,5 @@ export class DragSortLibrary {
         }
       }
     }
-  }
-
-  private isLocked(item: SortableItem): boolean {
-    return item.position >= 0;
   }
 }
