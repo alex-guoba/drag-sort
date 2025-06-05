@@ -1,31 +1,31 @@
-import { SortableItem, DragSortLibrary } from './drag_sort';
+import { SortableItem, DragSortLibrary } from './drag-sort';
 
 // 测试用例
 describe('DragSortLibrary', () => {
   it('insert', () => {
     const library = new DragSortLibrary(
       [
-        { id: '0', position: -1, order: 1 },
-        { id: '2', position: -1, order: 3 },
-        { id: '1', position: -1, order: 2 },
+        { id: '0', latched: -1, order: 1 },
+        { id: '2', latched: -1, order: 3 },
+        { id: '1', latched: -1, order: 2 },
       ],
       { step: 100000 }
     );
     expect(library.checkOrder()).toBe(true);
 
     let items = library.getAll();
-    expect(items[0].id).toBe('0');
-    expect(items[1].id).toBe('1');
-    expect(items[2].id).toBe('2');
+    expect(items[0].item.id).toBe('0');
+    expect(items[1].item.id).toBe('1');
+    expect(items[2].item.id).toBe('2');
 
-    expect(items[0].order).toBeLessThan(items[1].order);
-    expect(items[1].order).toBeLessThan(items[2].order);
+    expect(items[0].item.order).toBeLessThan(items[1].item.order);
+    expect(items[1].item.order).toBeLessThan(items[2].item.order);
 
     library.insert('insert_2', 2);
     library.insert('insert_3', 3);
     items = library.getAll();
-    expect(items[2].id).toBe('insert_2');
-    expect(items[3].id).toBe('insert_3');
+    expect(items[2].item.id).toBe('insert_2');
+    expect(items[3].item.id).toBe('insert_3');
 
     const updated = library.reorderLocked();
     expect(updated.length).toEqual(0);
@@ -42,8 +42,8 @@ describe('DragSortLibrary', () => {
     expect(library.checkOrder()).toBe(true);
 
     // insert unlocked item before locked item, it will be pushed to the end of locked items
-    let item = library.insert('new_unlock', 2);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    const inserted = library.insert('new_unlock', 2);
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock',
       '1_unlock',
       '2_lock',
@@ -55,9 +55,9 @@ describe('DragSortLibrary', () => {
     expect(library.reorderLocked().length).toBe(0);
 
     // insert locked item before locked item, it will replace its positon
-    library.delete(item.id);
-    item = library.insert('new_lock', 2, true);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    library.delete(inserted.item.id);
+    library.insert('new_lock', 2, true);
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
       'new_lock', // 2
@@ -68,7 +68,7 @@ describe('DragSortLibrary', () => {
 
     // locked itemd will be reordered
     expect(library.reorderLocked().length).toBe(2);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
       'new_lock', // 2
@@ -89,12 +89,12 @@ describe('DragSortLibrary', () => {
     let items = library.getAll();
 
     // assert tail is at the first position
-    expect(items[0].id).toBe('move');
+    expect(items[0].item.id).toBe('move');
 
     // move to middle
     library.move('move', 1);
     items = library.getAll();
-    expect(items[1].id).toBe('move');
+    expect(items[1].item.id).toBe('move');
 
     const updated = library.reorderLocked();
     expect(updated.length).toEqual(0);
@@ -112,8 +112,8 @@ describe('DragSortLibrary', () => {
 
     // move unlocked item before locked item, it will be pushed to the end of locked items
     library.append('moveable', false);
-    let item = library.move('moveable', 2);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    const moved = library.move('moveable', 2);
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock',
       '1_unlock',
       '2_lock',
@@ -125,10 +125,10 @@ describe('DragSortLibrary', () => {
     expect(library.reorderLocked().length).toBe(0);
 
     // insert locked item before locked item, it will replace its positon
-    library.delete(item.id);
-    item = library.append('moveable', true);
+    library.delete(moved.item.id);
+    library.append('moveable', true);
     library.move('moveable', 2);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
       'moveable', // 2
@@ -139,7 +139,7 @@ describe('DragSortLibrary', () => {
 
     // locked itemd will be reordered
     expect(library.reorderLocked().length).toBe(2);
-    expect(library.getAll().map((item) => item.id)).toEqual([
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
       'moveable', // 2
@@ -157,14 +157,14 @@ describe('DragSortLibrary', () => {
 
     expect(library.length).toBe(3);
 
-    const deleted = library.delete('0');
+    const deleted = library.delete('0')!;
     expect(library.checkOrder()).toBe(true);
-    expect(deleted?.id).toEqual('0');
+    expect(deleted.item.id).toEqual('0');
 
     const items = library.getAll();
     expect(items.length).toBe(2);
-    expect(items[0].id).toBe('header');
-    expect(items[1].id).toBe('1');
+    expect(items[0].item.id).toBe('header');
+    expect(items[1].item.id).toBe('1');
 
     const updated = library.reorderLocked();
     expect(updated.length).toEqual(0);
@@ -184,7 +184,7 @@ describe('DragSortLibrary', () => {
     library.reorderLocked();
 
     let items = library.getAll();
-    let ids = items.map((i) => i.id);
+    let ids = items.map((i) => i.item.id);
     expect(ids).toEqual(['0_lock', '3_unlock', '2_lock', '5_unlock', '4_lock']);
     expect(library.checkOrder()).toBe(true);
 
@@ -193,31 +193,31 @@ describe('DragSortLibrary', () => {
     library.reorderLocked();
     items = library.getAll();
 
-    ids = items.map((i) => i.id);
+    ids = items.map((i) => i.item.id);
     expect(ids).toEqual(['0_lock', '3_unlock', '5_unlock', '4_lock']);
     expect(library.checkOrder()).toBe(true);
 
     /// position may shirink if not enough items exist
-    expect(items[3].position === 3);
+    expect(items[3].item.latched === 3);
   });
 
   test('get', () => {
     const items: SortableItem[] = [
-      { id: '0_lock', order: 0, position: 0 },
-      { id: '1_lock', order: 1, position: 1 },
-      { id: '2_lock', order: 2, position: 2 },
-      { id: '3_unlock', order: 3, position: -1 },
-      { id: '4_lock', order: 4, position: 4 },
+      { id: '0_lock', order: 0, latched: 0 },
+      { id: '1_lock', order: 1, latched: 1 },
+      { id: '2_lock', order: 2, latched: 2 },
+      { id: '3_unlock', order: 3, latched: -1 },
+      { id: '4_lock', order: 4, latched: 4 },
     ];
     const library = new DragSortLibrary(items);
     library.insert('5_unlock', 5);
 
     for (let i = 0; i < items.length; i++) {
-      const item = library.get(items[i].id);
+      const item = library.get(items[i].id)!;
       expect(item.index === i);
 
-      expect(item.item?.id === items[i].id);
-      expect(item.item?.position === items[i].position);
+      expect(item.item.id === items[i].id);
+      expect(item.item.latched === items[i].latched);
     }
   });
 
@@ -228,9 +228,9 @@ describe('DragSortLibrary', () => {
     };
 
     const items: SortableItem[] = [
-      { id: 'head', order: 1, position: -1 },
-      { id: 'tail', order: 1.02, position: -1 },
-      { id: 'mid', order: 3, position: -1 },
+      { id: 'head', order: 1, latched: -1 },
+      { id: 'tail', order: 1.02, latched: -1 },
+      { id: 'mid', order: 3, latched: -1 },
     ];
     const step = 10;
     const library = new DragSortLibrary(items, {
@@ -242,20 +242,20 @@ describe('DragSortLibrary', () => {
 
     library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[1].id === 'mid');
-    expect(library.getAll()[1].order === 1.01);
+    expect(library.getAll()[1].item.id === 'mid');
+    expect(library.getAll()[1].item.order === 1.01);
 
     /// move again in the same position
     library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[1].id === 'mid');
-    expect(library.getAll()[1].order === 1.01);
+    expect(library.getAll()[1].item.id === 'mid');
+    expect(library.getAll()[1].item.order === 1.01);
 
     expect(resetAll.length).toBe(0);
     // precison overflow
     library.insert('new-node', 1); // insert but precison overflow
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[0].order === step); // reseted
+    expect(library.getAll()[0].item.order === step); // reseted
 
     expect(resetAll.length).toBe(4);
   });
@@ -267,9 +267,9 @@ describe('DragSortLibrary', () => {
     };
 
     const items: SortableItem[] = [
-      { id: 'head', order: 1, position: -1 },
-      { id: 'tail', order: 1.02, position: -1 },
-      { id: 'mid', order: 3, position: -1 },
+      { id: 'head', order: 1, latched: -1 },
+      { id: 'tail', order: 1.02, latched: -1 },
+      { id: 'mid', order: 3, latched: -1 },
     ];
     const step = 10;
     const library = new DragSortLibrary(items, {
@@ -281,14 +281,14 @@ describe('DragSortLibrary', () => {
 
     library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[1].id === 'mid');
-    expect(library.getAll()[1].order === 1.01);
+    expect(library.getAll()[1].item.id === 'mid');
+    expect(library.getAll()[1].item.order === 1.01);
 
     expect(resetAll.length).toBe(0);
     // precison overflow
     library.move('tail', 1); // set but precison overflow
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[0].order === step); // reseted
+    expect(library.getAll()[0].item.order === step); // reseted
     expect(resetAll.length).toBe(3);
   });
 
@@ -310,12 +310,12 @@ describe('DragSortLibrary', () => {
 
     expect(library.checkOrder()).toBe(true);
 
-    let moveItem = tailer;
+    let moveItem = tailer.item!;
     for (let i = 0; i < 10; i++) {
       library.move(moveItem.id, 1);
       expect(library.checkOrder()).toBe(true);
       expect(resetAll.length).toBe(0);
-      moveItem = moveItem.id === tailer.id ? middler : tailer;
+      moveItem = moveItem.id === tailer.item.id ? middler.item : tailer.item;
     }
   });
 
@@ -326,9 +326,9 @@ describe('DragSortLibrary', () => {
     };
     const step = 10;
     const items: SortableItem[] = [
-      { id: 'head', order: step, position: -1 },
-      { id: 'tail', order: step + 2, position: -1 },
-      { id: 'mid', order: step + 3, position: -1 },
+      { id: 'head', order: step, latched: -1 },
+      { id: 'tail', order: step + 2, latched: -1 },
+      { id: 'mid', order: step + 3, latched: -1 },
     ];
     const library = new DragSortLibrary(items, {
       precision: 0,
@@ -339,8 +339,8 @@ describe('DragSortLibrary', () => {
 
     library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
-    expect(library.getAll()[1].id === 'mid');
-    expect(library.getAll()[1].order === 11);
+    expect(library.getAll()[1].item.id === 'mid');
+    expect(library.getAll()[1].item.order === 11);
 
     expect(resetAll.length).toBe(0);
     // precison overflow
@@ -364,16 +364,16 @@ describe('DragSortLibrary', () => {
     library.delete('1_unlock');
     let updated = library.reorderLocked();
     expect(updated.length).toBe(2); // locked item will move head
-    expect(updated[0].id).toBe('2_lock');
-    expect(updated[1].id).toBe('4_lock');
+    expect(updated[0].item.id).toBe('2_lock');
+    expect(updated[1].item.id).toBe('4_lock');
 
     // delete locked item
     library.delete('2_lock');
 
     updated = library.reorderLocked();
     expect(updated.length).toBe(1);
-    expect(updated[0].id).toEqual('4_lock');
-    expect(updated[0].position).toEqual(3);
+    expect(updated[0].item.id).toEqual('4_lock');
+    expect(updated[0].item.latched).toEqual(3);
   });
 
   test('reorder-locked-insert', () => {
@@ -390,10 +390,10 @@ describe('DragSortLibrary', () => {
 
     const updated = library.reorderLocked();
     expect(updated.length).toBe(3);
-    updated.sort((a, b) => a.order - b.order);
+    updated.sort((a, b) => a.item.order - b.item.order);
 
-    expect(updated[0].id).toEqual('0_lock');
-    expect(updated[1].id).toEqual('2_lock');
-    expect(updated[2].id).toEqual('4_lock');
+    expect(updated[0].item.id).toEqual('0_lock');
+    expect(updated[1].item.id).toEqual('2_lock');
+    expect(updated[2].item.id).toEqual('4_lock');
   });
 });

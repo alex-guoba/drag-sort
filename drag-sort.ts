@@ -1,13 +1,20 @@
-import { unsafeMiddleValue } from './unsafe_middle';
+import { unsafeMiddleValue } from './unsafe-middle';
 
 const OrderOverflow = -1;
 const UnlockedPosition = -1;
 
+// Item in list
 export interface SortableItem {
   id: string;
   order: number; // double
-  position: number; // default to -1, position locked if >= 0
+  latched: number; // default to -1, position latched if >= 0
   data?: unknown;
+}
+
+// Item with index, for API usage
+export interface ItemWithIndex {
+  index: number; // position start from 0
+  item: SortableItem;
 }
 
 export interface DragSortOptions {
@@ -43,7 +50,7 @@ export class DragSortLibrary {
     position: number,
     lock: boolean = false,
     data: unknown = undefined
-  ): SortableItem {
+  ): ItemWithIndex {
     if (position < 0 || position > this.items.length) {
       throw new Error('Position out of range');
     }
@@ -57,7 +64,7 @@ export class DragSortLibrary {
     const newItem: SortableItem = {
       id,
       order: this.calculateOrder(newPos),
-      position: lock ? newPos : UnlockedPosition,
+      latched: lock ? newPos : UnlockedPosition,
       data,
     };
 
@@ -71,7 +78,10 @@ export class DragSortLibrary {
       this.resetOrder();
     }
 
-    return newItem;
+    return {
+      index: newPos,
+      item: newItem,
+    };
   }
 
   // append to the end
@@ -79,13 +89,13 @@ export class DragSortLibrary {
     id: string,
     lock: boolean = false,
     data: undefined = undefined
-  ): SortableItem {
+  ): ItemWithIndex {
     const position = this.items.length;
     return this.insert(id, position, lock, data);
   }
 
   // move to a new position
-  move(id: string, position: number): SortableItem {
+  move(id: string, position: number): ItemWithIndex {
     if (position < 0 || position > this.items.length - 1) {
       throw new Error('Position out of range');
     }
@@ -96,17 +106,23 @@ export class DragSortLibrary {
     }
     // ignore if position is same as index
     if (position === index) {
-      return this.items[index];
+      return {
+        index,
+        item: this.items[index],
+      };
     }
 
     const newPos = this.findFreePos(position, this.isLocked(this.items[index]));
 
     const item = this.moveIndex(index, newPos);
-    return item;
+    return {
+      index: newPos,
+      item,
+    };
   }
 
   // delete
-  delete(id: string): SortableItem | undefined {
+  delete(id: string): ItemWithIndex | undefined {
     const index = this.items.findIndex((i) => i.id === id);
     if (index === -1) {
       return;
@@ -116,11 +132,14 @@ export class DragSortLibrary {
     if (items.length === 0) {
       return;
     }
-    return items[0];
+    return {
+      index,
+      item: items[0],
+    };
   }
 
   // lock
-  lock(id: string, lock: boolean = true): SortableItem | undefined {
+  lock(id: string, lock: boolean = true): ItemWithIndex | undefined {
     const index = this.items.findIndex((i) => i.id === id);
     if (index === -1) {
       return;
@@ -128,11 +147,14 @@ export class DragSortLibrary {
 
     const item = this.items[index];
     if (lock && !this.isLocked(item)) {
-      item.position = index;
+      item.latched = index;
     } else if (!lock && this.isLocked(item)) {
-      item.position = UnlockedPosition;
+      item.latched = UnlockedPosition;
     }
-    return item;
+    return {
+      item,
+      index,
+    };
   }
 
   // length
@@ -141,43 +163,51 @@ export class DragSortLibrary {
   }
 
   // get all (shallow-copy)
-  getAll(): SortableItem[] {
-    return this.items.map((item) => ({ ...item }));
+  getAll(): ItemWithIndex[] {
+    return this.items.map((item, index) => ({
+      item: { ...item },
+      index,
+    }));
   }
 
-  get(id: string) {
+  get(id: string): ItemWithIndex | undefined {
     const index = this.items.findIndex((i) => i.id === id);
-    return {
-      index,
-      item: index !== -1 ? { ...this.items[index] } : null,
-    };
+    if (index >= 0) {
+      return {
+        index,
+        item: { ...this.items[index] },
+      };
+    }
   }
   // reorder locked items when needed( insert / delele / move)
-  public reorderLocked(): SortableItem[] {
-    const updated: SortableItem[] = [];
+  public reorderLocked(): ItemWithIndex[] {
+    const updated: ItemWithIndex[] = [];
     const movedIndices = new Set<number>();
     const itemsCopy = [...this.items];
     const totalLength = this.items.length;
 
     for (let i = 0; i < totalLength; i++) {
-      const current = this.get(itemsCopy[i].id);
+      const current = this.get(itemsCopy[i].id)!;
       const item = current.item;
       if (!item) {
         continue;
       }
 
-      if (!this.isLocked(item) || item.position >= totalLength) continue;
+      if (!this.isLocked(item) || item.latched >= totalLength) continue;
 
-      if (item.position === current.index) continue;
-      if (this.items[item.position].position === item.position) {
+      if (item.latched === current.index) continue;
+      if (this.items[item.latched].latched === item.latched) {
         continue; // ignore the same position
       }
 
       if (!movedIndices.has(i)) {
         try {
-          const updatedItem = this.moveIndex(current.index, item.position);
-          updated.push({ ...updatedItem });
-          movedIndices.add(item.position);
+          const updatedItem = this.moveIndex(current.index, item.latched);
+          updated.push({
+            index: item.latched,
+            item: { ...updatedItem },
+          });
+          movedIndices.add(item.latched);
         } catch (error) {
           console.error(`Failed to set position for item ${item.id}:`, error);
         }
@@ -186,10 +216,13 @@ export class DragSortLibrary {
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
-      if (this.isLocked(item) && item.position !== i) {
+      if (this.isLocked(item) && item.latched !== i) {
         // reset position if it's out of range or conflict
-        item.position = i;
-        updated.push({ ...item });
+        item.latched = i;
+        updated.push({
+          index: i,
+          item: { ...item },
+        });
       }
     }
 
@@ -201,7 +234,7 @@ export class DragSortLibrary {
     let preOrder = -1;
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
-      if (this.isLocked(item) && item.position !== i) {
+      if (this.isLocked(item) && item.latched !== i) {
         return false;
       }
       if (preOrder >= item.order) {
@@ -212,8 +245,8 @@ export class DragSortLibrary {
     return true;
   }
 
-  public isLocked(item: SortableItem): boolean {
-    return item.position != UnlockedPosition;
+  private isLocked(item: SortableItem): boolean {
+    return item.latched != UnlockedPosition;
   }
 
   // calculate order by index
@@ -262,8 +295,8 @@ export class DragSortLibrary {
 
     this.items.splice(index, 1);
     item.order = this.calculateOrder(position);
-    if (item.position >= 0) {
-      item.position = position;
+    if (this.isLocked(item)) {
+      item.latched = position;
     }
 
     this.items = [
@@ -307,13 +340,11 @@ export class DragSortLibrary {
       }
     });
 
-    if (resorded.length > 0) {
-      if (this.option.onResetOrder) {
-        try {
-          this.option.onResetOrder(resorded);
-        } catch (e) {
-          console.error(e);
-        }
+    if (resorded.length > 0 && this.option.onResetOrder) {
+      try {
+        this.option.onResetOrder(resorded);
+      } catch (e) {
+        console.error(e);
       }
     }
   }

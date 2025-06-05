@@ -18,12 +18,12 @@
 To initialize the library with a set of sortable items:
 
 ```typescript
-import { SortableItem, DragSortLibrary } from './drag_sort';
+import { SortableItem, DragSortLibrary } from './drag-sort';
 
 const items: SortableItem[] = [
-  { id: '0', position: -1, order: 1 },
-  { id: '2', position: -1, order: 3 },
-  { id: '1', position: -1, order: 2 },
+  { id: '0', latched: -1, order: 1 },
+  { id: '2', latched: -1, order: 3 },
+  { id: '1', latched: -1, order: 2 },
 ];
 const library = new DragSortLibrary(items, { step: 100000 });
 ```
@@ -37,8 +37,8 @@ library.insert('insert_2', 2);
 library.append('insert_3');
 
 let items = library.getAll();
-expect(items[2].id).toBe('insert_2');
-expect(items[3].id).toBe('insert_3');
+expect(items[2].item.id).toBe('insert_2');
+expect(items[3].item.id).toBe('insert_3');
 ```
 
 ### Moving Items
@@ -49,7 +49,7 @@ Move an item to a specific index:
 library.move('move', 0);
 
 let items = library.getAll();
-expect(items[0].id).toBe('move');
+expect(items[0].item.id).toBe('move');
 ```
 
 ### Deleting Items
@@ -61,8 +61,8 @@ const deleted = library.delete('0');
 
 let items = library.getAll();
 expect(items.length).toBe(2);
-expect(items[0].id).toBe('header'); // Assuming previously added
-expect(items[1].id).toBe('1');      // Another existing item
+expect(items[0].item.id).toBe('header');
+expect(items[1].item.id).toBe('1');
 ```
 
 ### Locking/Unlocking Elements
@@ -75,7 +75,7 @@ library.insert('1_unlock', 1, false);
 
 library.delete('1_unlock');
 let updated = library.reorderLocked();
-expect(updated.length).toEqual(0); // No locked items needed adjustment
+expect(updated.length).toEqual(0);
 ```
 
 ### Precision & Order Reset
@@ -110,6 +110,7 @@ expect(itemInfo.item?.id).toBe('someItemId');
 This covers the core features and usage patterns of the `DragSortLibrary`. You can extend and adapt it based on your application's needs.
 
 Let me know if you'd like to add sections such as:
+
 - Installation instructions
 - API reference
 - Contributing guidelines

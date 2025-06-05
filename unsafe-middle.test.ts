@@ -1,4 +1,4 @@
-import { unsafeMiddleValue } from './unsafe_middle';
+import { unsafeMiddleValue } from './unsafe-middle';
 
 describe('unsafeMiddleValue', () => {
   test('TC01: 最后一位是奇数且小于9', () => {
