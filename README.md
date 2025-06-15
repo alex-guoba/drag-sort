@@ -1,6 +1,6 @@
 # DragSortLibrary Documentation
 
-[DragSortLibrary](./drag_sort.ts) is a utility library for managing drag-and-sort operations on a list of items. It supports inserting, moving, deleting, and locking elements while maintaining their relative order using floating-point values ([order](./drag_sort.ts#L7-L7)). This avoids the need to recompute all order values after every operation (e.g., insert, move, delete).
+[DragSortLibrary](./drag_sort.ts) is a utility library for managing drag-and-sort operations on a list of items. It supports inserting, moving, deleting, and locking elements while maintaining their relative order using floating-point values ([order](./drag-sort.ts#L7-L7)). This avoids the need to recompute all order values after every operation (e.g., insert, move, delete).
 
 ## Features
 
