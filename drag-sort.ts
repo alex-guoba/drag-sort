@@ -22,7 +22,7 @@ export interface DragSortOptions {
   precision: number;
 
   // When precison overflow, reset order
-  onResetOrder?: (items: SortableItem[]) => void;
+  onResetOrder?: (items: SortableItem[], cbConfig: unknown) => Promise<void>;
 }
 
 export class DragSortLibrary {
@@ -31,6 +31,7 @@ export class DragSortLibrary {
     step: 1000,
     precision: 8,
   };
+  private cbConfig: unknown;
 
   constructor(items?: SortableItem[], option?: Partial<DragSortOptions>) {
     if (items) {
@@ -44,13 +45,19 @@ export class DragSortLibrary {
     };
   }
 
+  // clean all history data
+  clean() {
+    this.items = [];
+    this.cbConfig = null;
+  }
+
   // insert item to the position, order will be caclculated by its neighbor
-  insert(
+  async insert(
     id: string,
     position: number,
     lock: boolean = false,
     data: unknown = undefined
-  ): ItemWithIndex {
+  ): Promise<ItemWithIndex> {
     if (position < 0 || position > this.items.length) {
       throw new Error('Position out of range');
     }
@@ -85,17 +92,17 @@ export class DragSortLibrary {
   }
 
   // append to the end
-  append(
+  async append(
     id: string,
     lock: boolean = false,
     data: undefined = undefined
-  ): ItemWithIndex {
+  ): Promise<ItemWithIndex> {
     const position = this.items.length;
     return this.insert(id, position, lock, data);
   }
 
   // move to a new position
-  move(id: string, position: number): ItemWithIndex {
+  async move(id: string, position: number): Promise<ItemWithIndex> {
     if (position < 0 || position > this.items.length - 1) {
       throw new Error('Position out of range');
     }
@@ -114,7 +121,7 @@ export class DragSortLibrary {
 
     const newPos = this.findFreePos(position, this.isLocked(this.items[index]));
 
-    const item = this.moveIndex(index, newPos);
+    const item = await this.moveIndex(index, newPos);
     return {
       index: newPos,
       item,
@@ -180,36 +187,34 @@ export class DragSortLibrary {
     }
   }
   // reorder locked items when needed( insert / delele / move)
-  public reorderLocked(): ItemWithIndex[] {
+  public async reorderLocked(): Promise<ItemWithIndex[]> {
     const updated: ItemWithIndex[] = [];
     const movedIndices = new Set<number>();
-    const itemsCopy = [...this.items];
-    const totalLength = this.items.length;
+
+    const itemsCopy = [...this.items]; // avoid mutating the original array during iteration
+    const totalLength = itemsCopy.length;
 
     for (let i = 0; i < totalLength; i++) {
       const current = this.get(itemsCopy[i].id)!;
-      const item = current.item;
-      if (!item) {
-        continue;
-      }
 
-      if (!this.isLocked(item) || item.latched >= totalLength) continue;
+      if (!this.isLocked(current.item) || current.item.latched >= totalLength) continue;
 
-      if (item.latched === current.index) continue;
-      if (this.items[item.latched].latched === item.latched) {
-        continue; // ignore the same position
-      }
+      // no need to move
+      if (current.item.latched === current.index) {
+        movedIndices.add(current.item.latched);
+        continue
+      };
 
-      if (!movedIndices.has(i)) {
+      if (!movedIndices.has(current.item.latched)) {
         try {
-          const updatedItem = this.moveIndex(current.index, item.latched);
+          const updatedItem = await this.moveIndex(current.index, current.item.latched);
           updated.push({
-            index: item.latched,
+            index: current.item.latched,
             item: { ...updatedItem },
           });
-          movedIndices.add(item.latched);
+          movedIndices.add(current.item.latched);
         } catch (error) {
-          console.error(`Failed to set position for item ${item.id}:`, error);
+          console.error(`Failed to set position for item ${current.item.id}:`, error);
         }
       }
     }
@@ -290,7 +295,7 @@ export class DragSortLibrary {
   }
 
   // set position by index
-  private moveIndex(index: number, position: number) {
+  private async moveIndex(index: number, position: number) {
     const item = this.items[index];
 
     this.items.splice(index, 1);
@@ -306,7 +311,7 @@ export class DragSortLibrary {
     ];
 
     if (item.order === OrderOverflow) {
-      this.resetOrder();
+      await this.resetOrder();
     }
 
     return item;
@@ -330,7 +335,7 @@ export class DragSortLibrary {
     this.items.sort((a, b) => a.order - b.order);
   }
 
-  private resetOrder(): void {
+  private async resetOrder() {
     const resorded: SortableItem[] = [];
     this.items.map((item, index) => {
       const order = (index + 1) * this.option.step;
@@ -342,7 +347,7 @@ export class DragSortLibrary {
 
     if (resorded.length > 0 && this.option.onResetOrder) {
       try {
-        this.option.onResetOrder(resorded);
+        await this.option.onResetOrder(resorded, this.cbConfig);
       } catch (e) {
         console.error(e);
       }

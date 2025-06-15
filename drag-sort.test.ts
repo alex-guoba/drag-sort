@@ -2,7 +2,7 @@ import { SortableItem, DragSortLibrary } from './drag-sort';
 
 // 测试用例
 describe('DragSortLibrary', () => {
-  it('insert', () => {
+  it('insert', async () => {
     const library = new DragSortLibrary(
       [
         { id: '0', latched: -1, order: 1 },
@@ -21,17 +21,17 @@ describe('DragSortLibrary', () => {
     expect(items[0].item.order).toBeLessThan(items[1].item.order);
     expect(items[1].item.order).toBeLessThan(items[2].item.order);
 
-    library.insert('insert_2', 2);
-    library.insert('insert_3', 3);
+    await library.insert('insert_2', 2);
+    await library.insert('insert_3', 3);
     items = library.getAll();
     expect(items[2].item.id).toBe('insert_2');
     expect(items[3].item.id).toBe('insert_3');
 
-    const updated = library.reorderLocked();
+    const updated = await library.reorderLocked();
     expect(updated.length).toEqual(0);
   });
 
-  it('insert-before-locked', () => {
+  it('insert-unlock-before-locked', async () => {
     const library = new DragSortLibrary();
     library.append('0_lock', true);
     library.append('1_unlock', false);
@@ -42,7 +42,7 @@ describe('DragSortLibrary', () => {
     expect(library.checkOrder()).toBe(true);
 
     // insert unlocked item before locked item, it will be pushed to the end of locked items
-    const inserted = library.insert('new_unlock', 2);
+    await library.insert('new_unlock', 2);
     expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock',
       '1_unlock',
@@ -52,55 +52,11 @@ describe('DragSortLibrary', () => {
       '4_unlock',
     ]);
 
-    expect(library.reorderLocked().length).toBe(0);
-
-    // insert locked item before locked item, it will replace its positon
-    library.delete(inserted.item.id);
-    library.insert('new_lock', 2, true);
-    expect(library.getAll().map((item) => item.item.id)).toEqual([
-      '0_lock', // 0
-      '1_unlock',
-      'new_lock', // 2
-      '2_lock', // 2
-      '3_lock', // 3
-      '4_unlock',
-    ]);
-
-    // locked itemd will be reordered
-    expect(library.reorderLocked().length).toBe(2);
-    expect(library.getAll().map((item) => item.item.id)).toEqual([
-      '0_lock', // 0
-      '1_unlock',
-      'new_lock', // 2
-      '3_lock', // 3
-      '2_lock', // conflict item will be reset
-      '4_unlock',
-    ]);
+    const beupdated = await library.reorderLocked();
+    expect(beupdated.length).toBe(0);
   });
 
-  it('move', () => {
-    const library = new DragSortLibrary();
-    library.insert('00', 0);
-    library.insert('10', 1);
-    library.insert('move', 2);
-
-    // move to header
-    library.move('move', 0);
-    let items = library.getAll();
-
-    // assert tail is at the first position
-    expect(items[0].item.id).toBe('move');
-
-    // move to middle
-    library.move('move', 1);
-    items = library.getAll();
-    expect(items[1].item.id).toBe('move');
-
-    const updated = library.reorderLocked();
-    expect(updated.length).toEqual(0);
-  });
-
-  it('move-before-locked', () => {
+  it('insert-before-locked', async () => {
     const library = new DragSortLibrary();
     library.append('0_lock', true);
     library.append('1_unlock', false);
@@ -110,9 +66,65 @@ describe('DragSortLibrary', () => {
 
     expect(library.checkOrder()).toBe(true);
 
+    // insert locked item before locked item, it will replace its positon
+    await library.insert('new_lock', 2, true);
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'new_lock', // 2
+      '2_lock', // 2
+      '3_lock', // 3
+      '4_unlock',
+    ]);
+
+    // locked itemd will be reordered
+    expect((await library.reorderLocked()).length).toBe(2);
+    expect(library.checkOrder()).toBe(true);
+    expect(library.getAll().map((item) => item.item.id)).toEqual([
+      '0_lock', // 0
+      '1_unlock',
+      'new_lock', // 2
+      '3_lock', // 3
+      '2_lock', // conflict item will be reset
+      '4_unlock',
+    ]);
+  });
+
+  it('move', async () => {
+    const library = new DragSortLibrary();
+    library.insert('00', 0);
+    library.insert('10', 1);
+    library.insert('move', 2);
+
+    // move to header
+    await library.move('move', 0);
+    let items = library.getAll();
+
+    // assert tail is at the first position
+    expect(items[0].item.id).toBe('move');
+
+    // move to middle
+    await library.move('move', 1);
+    items = library.getAll();
+    expect(items[1].item.id).toBe('move');
+
+    const updated = await library.reorderLocked();
+    expect(updated.length).toEqual(0);
+  });
+
+  it('move-before-locked', async () => {
+    const library = new DragSortLibrary();
+    await library.append('0_lock', true);
+    await library.append('1_unlock', false);
+    await library.append('2_lock', true);
+    await library.append('3_lock', true);
+    await library.append('4_unlock', false);
+
+    expect(library.checkOrder()).toBe(true);
+
     // move unlocked item before locked item, it will be pushed to the end of locked items
     library.append('moveable', false);
-    const moved = library.move('moveable', 2);
+    const moved = await library.move('moveable', 2);
     expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock',
       '1_unlock',
@@ -122,12 +134,12 @@ describe('DragSortLibrary', () => {
       '4_unlock',
     ]);
 
-    expect(library.reorderLocked().length).toBe(0);
+    expect((await library.reorderLocked()).length).toBe(0);
 
     // insert locked item before locked item, it will replace its positon
     library.delete(moved.item.id);
-    library.append('moveable', true);
-    library.move('moveable', 2);
+    await library.append('moveable', true);
+    await library.move('moveable', 2);
     expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
@@ -138,7 +150,7 @@ describe('DragSortLibrary', () => {
     ]);
 
     // locked itemd will be reordered
-    expect(library.reorderLocked().length).toBe(2);
+    expect((await library.reorderLocked()).length).toBe(2);
     expect(library.getAll().map((item) => item.item.id)).toEqual([
       '0_lock', // 0
       '1_unlock',
@@ -149,11 +161,11 @@ describe('DragSortLibrary', () => {
     ]);
   });
 
-  it('delete', () => {
+  it('delete', async () => {
     const library = new DragSortLibrary();
-    library.insert('0', 0);
-    library.insert('1', 1);
-    library.insert('header', 0, true);
+    await library.insert('0', 0);
+    await library.insert('1', 1);
+    await library.insert('header', 0, true);
 
     expect(library.length).toBe(3);
 
@@ -166,22 +178,22 @@ describe('DragSortLibrary', () => {
     expect(items[0].item.id).toBe('header');
     expect(items[1].item.id).toBe('1');
 
-    const updated = library.reorderLocked();
+    const updated = await library.reorderLocked();
     expect(updated.length).toEqual(0);
   });
 
-  it('order-locked', () => {
+  it('order-locked', async () => {
     const library = new DragSortLibrary();
-    library.insert('0_lock', 0, true);
-    library.insert('1_unlock', 1, false);
-    library.insert('2_lock', 2, true);
-    library.insert('3_unlock', 3, false);
-    library.insert('4_lock', 4, true);
-    library.insert('5_unlock', 5, false);
+    await library.insert('0_lock', 0, true);
+    await library.insert('1_unlock', 1, false);
+    await library.insert('2_lock', 2, true);
+    await library.insert('3_unlock', 3, false);
+    await library.insert('4_lock', 4, true);
+    await library.insert('5_unlock', 5, false);
 
     // delete an unlocked item, which should not affect the order of locked items
     library.delete('1_unlock');
-    library.reorderLocked();
+    await library.reorderLocked();
 
     let items = library.getAll();
     let ids = items.map((i) => i.item.id);
@@ -190,7 +202,7 @@ describe('DragSortLibrary', () => {
 
     //  delete a locked item, which should not affect the order of unlocked items
     library.delete('2_lock');
-    library.reorderLocked();
+    await library.reorderLocked();
     items = library.getAll();
 
     ids = items.map((i) => i.item.id);
@@ -201,7 +213,7 @@ describe('DragSortLibrary', () => {
     expect(items[3].item.latched === 3);
   });
 
-  test('get', () => {
+  test('get', async () => {
     const items: SortableItem[] = [
       { id: '0_lock', order: 0, latched: 0 },
       { id: '1_lock', order: 1, latched: 1 },
@@ -210,7 +222,7 @@ describe('DragSortLibrary', () => {
       { id: '4_lock', order: 4, latched: 4 },
     ];
     const library = new DragSortLibrary(items);
-    library.insert('5_unlock', 5);
+    await library.insert('5_unlock', 5);
 
     for (let i = 0; i < items.length; i++) {
       const item = library.get(items[i].id)!;
@@ -223,8 +235,10 @@ describe('DragSortLibrary', () => {
 
   test('precision-insert', () => {
     const resetAll: SortableItem[] = [];
-    const onResetOrder = function (reseted: SortableItem[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onResetOrder = function (reseted: SortableItem[], _cfg: unknown) {
       resetAll.push(...reseted);
+      return Promise.resolve();
     };
 
     const items: SortableItem[] = [
@@ -260,10 +274,12 @@ describe('DragSortLibrary', () => {
     expect(resetAll.length).toBe(4);
   });
 
-  test('precision-update', () => {
+  test('precision-update', async () => {
     const resetAll: SortableItem[] = [];
-    const onResetOrder = function (reseted: SortableItem[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onResetOrder = function (reseted: SortableItem[], cbConfig: unknown) {
       resetAll.push(...reseted);
+      return Promise.resolve();
     };
 
     const items: SortableItem[] = [
@@ -279,7 +295,7 @@ describe('DragSortLibrary', () => {
     });
     expect(library.checkOrder()).toBe(true);
 
-    library.move('mid', 1); // move to middle
+    await library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
     expect(library.getAll()[1].item.id === 'mid');
     expect(library.getAll()[1].item.order === 1.01);
@@ -292,10 +308,12 @@ describe('DragSortLibrary', () => {
     expect(resetAll.length).toBe(3);
   });
 
-  test('precision-overflow', () => {
+  test('precision-overflow', async () => {
     const resetAll: SortableItem[] = [];
-    const onResetOrder = function (reseted: SortableItem[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onResetOrder = function (reseted: SortableItem[], cbConfig: unknown) {
       resetAll.push(...reseted);
+      return Promise.resolve();
     };
 
     const step = 10;
@@ -304,25 +322,27 @@ describe('DragSortLibrary', () => {
       step,
       onResetOrder,
     });
-    library.append('header');
-    const middler = library.append('mid');
-    const tailer = library.append('tail');
+    await library.append('header');
+    const middler = await library.append('mid');
+    const tailer = await library.append('tail');
 
     expect(library.checkOrder()).toBe(true);
 
     let moveItem = tailer.item!;
     for (let i = 0; i < 10; i++) {
-      library.move(moveItem.id, 1);
+      await library.move(moveItem.id, 1);
       expect(library.checkOrder()).toBe(true);
       expect(resetAll.length).toBe(0);
       moveItem = moveItem.id === tailer.item.id ? middler.item : tailer.item;
     }
   });
 
-  test('reset-order', () => {
+  test('reset-order', async () => {
     const resetAll: SortableItem[] = [];
-    const onResetOrder = function (reseted: SortableItem[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onResetOrder = function (reseted: SortableItem[], cbConfig: unknown) {
       resetAll.push(...reseted);
+      return Promise.resolve();
     };
     const step = 10;
     const items: SortableItem[] = [
@@ -337,32 +357,32 @@ describe('DragSortLibrary', () => {
     });
     expect(library.checkOrder()).toBe(true);
 
-    library.move('mid', 1); // move to middle
+    await library.move('mid', 1); // move to middle
     expect(library.checkOrder()).toBe(true);
     expect(library.getAll()[1].item.id === 'mid');
     expect(library.getAll()[1].item.order === 11);
 
     expect(resetAll.length).toBe(0);
     // precison overflow
-    library.move('tail', 1); // set but precison overflow
+    await library.move('tail', 1); // set but precison overflow
     expect(library.checkOrder()).toBe(true);
     expect(resetAll.length).toBe(2); // header wouldn't be affected
     expect(resetAll[0].id === 'tail');
     expect(resetAll[1].id === 'mid');
   });
 
-  test('reorder-locked-delete', () => {
+  test('reorder-locked-delete', async () => {
     const library = new DragSortLibrary();
-    library.insert('0_lock', 0, true);
-    library.insert('1_unlock', 1, false);
-    library.insert('2_lock', 2, true);
-    library.insert('3_unlock', 3, false);
-    library.insert('4_lock', 4, true);
-    library.insert('5_unlock', 5, false);
+    await library.insert('0_lock', 0, true);
+    await library.insert('1_unlock', 1, false);
+    await library.insert('2_lock', 2, true);
+    await library.insert('3_unlock', 3, false);
+    await library.insert('4_lock', 4, true);
+    await library.insert('5_unlock', 5, false);
 
     // delete an unlocked item
     library.delete('1_unlock');
-    let updated = library.reorderLocked();
+    let updated = await library.reorderLocked();
     expect(updated.length).toBe(2); // locked item will move head
     expect(updated[0].item.id).toBe('2_lock');
     expect(updated[1].item.id).toBe('4_lock');
@@ -370,25 +390,25 @@ describe('DragSortLibrary', () => {
     // delete locked item
     library.delete('2_lock');
 
-    updated = library.reorderLocked();
+    updated = await library.reorderLocked();
     expect(updated.length).toBe(1);
     expect(updated[0].item.id).toEqual('4_lock');
     expect(updated[0].item.latched).toEqual(3);
   });
 
-  test('reorder-locked-insert', () => {
+  test('reorder-locked-insert', async () => {
     const library = new DragSortLibrary();
-    library.insert('0_lock', 0, true);
-    library.insert('1_unlock', 1, false);
-    library.insert('2_lock', 2, true);
-    library.insert('3_unlock', 3, false);
-    library.insert('4_lock', 4, true);
-    library.insert('5_unlock', 5, false);
+    await library.insert('0_lock', 0, true);
+    await library.insert('1_unlock', 1, false);
+    await library.insert('2_lock', 2, true);
+    await library.insert('3_unlock', 3, false);
+    await library.insert('4_lock', 4, true);
+    await library.insert('5_unlock', 5, false);
 
-    library.insert('new_header_with_lock', 0, true);
-    library.insert('middle_unlock', 4, false);
+    await library.insert('new_header_with_lock', 0, true);
+    await library.insert('middle_unlock', 4, false);
 
-    const updated = library.reorderLocked();
+    const updated = await library.reorderLocked();
     expect(updated.length).toBe(3);
     updated.sort((a, b) => a.item.order - b.item.order);
 
