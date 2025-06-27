@@ -28,7 +28,7 @@ export interface DragSortOptions {
 export class DragSortLibrary {
   private items: SortableItem[] = [];
   private option: DragSortOptions = {
-    step: 1000,
+    step: 1024,
     precision: 8,
   };
   private cbConfig: unknown;
@@ -43,6 +43,21 @@ export class DragSortLibrary {
       ...this.option,
       ...option,
     };
+  }
+
+  public setOptions(options: DragSortOptions) {
+    this.option = {
+      ...this.option,
+      ...options,
+    };
+  }
+
+  get step() {
+    return this.option.step;
+  }
+
+  get precision() {
+    return this.option.precision;
   }
 
   // clean all history data
@@ -202,8 +217,11 @@ export class DragSortLibrary {
       // no need to move
       if (current.item.latched === current.index) {
         movedIndices.add(current.item.latched);
-        continue
+        continue;
       };
+
+      // if destination is locked, ignore
+      if (this.isLocked(this.items[current.item.latched])) continue;
 
       if (!movedIndices.has(current.item.latched)) {
         try {
@@ -254,6 +272,18 @@ export class DragSortLibrary {
     return item.latched != UnlockedPosition;
   }
 
+  private nextOrderValue(order: number): number {
+     
+    const next =
+       
+      Math.round((order + this.option.step - 1) / this.option.step) *
+      this.option.step;
+    if (next < 0) {
+      return Math.round(order) + this.option.step;
+    }
+    return next;
+  }
+
   // calculate order by index
   private calculateOrder(position: number): number {
     if (this.items.length === 0) {
@@ -272,13 +302,8 @@ export class DragSortLibrary {
       return order;
     }
 
-    if (position === this.items.length) {
-      return (
-        Math.round(
-          (this.items[this.items.length - 1].order + this.option.step - 1) /
-            this.option.step
-        ) * this.option.step
-      );
+    if (position >= this.items.length) {
+      return this.nextOrderValue(this.items[this.items.length - 1].order);
     }
 
     const prevItem = this.items[position - 1];
@@ -286,7 +311,7 @@ export class DragSortLibrary {
     const order = unsafeMiddleValue(
       prevItem.order,
       nextItem.order,
-      this.option.precision
+      this.option.precision,
     );
     if (order <= prevItem.order || order >= nextItem.order) {
       return OrderOverflow;
@@ -336,18 +361,18 @@ export class DragSortLibrary {
   }
 
   private async resetOrder() {
-    const resorded: SortableItem[] = [];
-    this.items.map((item, index) => {
+    const reorded: SortableItem[] = [];
+    this.items.forEach((item, index) => {
       const order = (index + 1) * this.option.step;
       if (item.order !== order) {
         item.order = order;
-        resorded.push(item);
+        reorded.push(item);
       }
     });
 
-    if (resorded.length > 0 && this.option.onResetOrder) {
+    if (reorded.length > 0 && this.option.onResetOrder) {
       try {
-        await this.option.onResetOrder(resorded, this.cbConfig);
+        await this.option.onResetOrder(reorded, this.cbConfig);
       } catch (e) {
         console.error(e);
       }

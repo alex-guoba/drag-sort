@@ -84,8 +84,8 @@ describe('DragSortLibrary', () => {
       '0_lock', // 0
       '1_unlock',
       'new_lock', // 2
-      '3_lock', // 3
-      '2_lock', // conflict item will be reset
+      '2_lock', // 3
+      '3_lock', // conflict item will be reset
       '4_unlock',
     ]);
   });
@@ -155,8 +155,8 @@ describe('DragSortLibrary', () => {
       '0_lock', // 0
       '1_unlock',
       'moveable', // 2
-      '3_lock', // 3
-      '2_lock', // conflict item will be reset
+      '2_lock', // 3
+      '3_lock', // conflict item will be reset
       '4_unlock',
     ]);
   });
